@@ -1,0 +1,44 @@
+---
+title: "Lec1"
+format: pdf
+---
+
+```{r}
+15 %% 2
+15 %/% 2
+
+x <- 5
+y = 10
+
+birth_yaer <- 2002
+current_year <- 2026
+my_age <- current_year - birth_yaer
+
+rm(list = ls())
+
+ages <- c(1,2,3,4)
+ages[-2]
+
+seq(1,10)
+seq(0,1, by = 0.1)
+seq(0,1, length.out = 11)
+rep(5,3)
+
+test <- c(1,2,NA,NaN,Inf)
+is.na(test)
+is.finite(test)
+
+order()
+
+test_scores <- c(85, 92, 78, 96, 88)
+mean(test_scores)
+max(test_scores)
+student_names <- c("Alex", "Bob", "Cindy", "David", "Eric")
+test_scores[3]
+student_names[2]
+min(test_scores)
+which.min(test_scores)
+
+
+
+```
