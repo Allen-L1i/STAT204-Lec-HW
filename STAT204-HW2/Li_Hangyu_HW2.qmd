@@ -1,0 +1,271 @@
+---
+title: "HW2: Data Import, Cleaning, and Exploration"
+author: "Hangyu Li"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+## Part 0: Set Up Your Project in Positron (5 points)
+
+### 0.1 Create a project folder
+
+1.  In Positron, choose **File → Open Folder…** and create/open a new folder called `STAT204-HW2` (you can put it inside the Git repository you set up in Week 1).
+2.  In the **Explorer** pane (left sidebar), create a subfolder called `data`.
+
+Opening the folder matters: Positron’s console and Quarto both use it as the **working directory**, so relative paths like `data/...` just work. **Do not use `setwd()`** in your document.
+
+### 0.2 Download the dataset
+
+1.  Go to: https://datadryad.org/stash/dataset/doi:10.5061/dryad.ts45225
+2.  Click “Download Dataset” (free and open access) and extract the files.
+3.  Find `PalmTraits_1.0.txt` (a tab-delimited text file, under the Sep 09, 2020 tab) and move it into your `data/` folder.
+
+### 0.3 Create your Quarto document
+
+1.  Choose **File → New File… → Quarto Document**, and save it in the project folder (not in `data/`) as `LastName_FirstName_HW2.qmd`.
+2.  Check the **interpreter picker** in the top-right corner of Positron: it should show an **R** session. If it shows Python, click it and select R.
+3.  Replace the default header with:
+
+```{yaml}
+---
+title: "HW2: Data Import, Cleaning, and Exploration"
+author: "Your Name"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+```
+
+4.  Add a short paragraph saying where the data comes from (the Dryad link and the file name), then this setup chunk:
+
+```{r}
+library(dplyr)   # used in Part 3.3 only
+```
+
+**Working in Positron:**
+
+- Run the current line or selection with **Ctrl/Cmd + Enter**, or a whole chunk with **Run Cell** above it.
+- The **Variables** pane shows every object you create. Click the table icon next to a data frame (or run `View(palm_data)` in the console) to open it in the **Data Explorer**.
+- **Preview** your document often (the Preview button, or **Ctrl/Cmd + Shift + K**). If it renders, your code runs from top to bottom in a fresh session, which is what “reproducible” means.
+- Optional: commit your work to Git from the **Source Control** pane as you go, like you practiced in Week 1.
+
+**Points:** the document renders without errors, uses a relative path for the data, and has a setup chunk.
+
+------------------------------------------------------------------------
+
+## Part 1: Import and First Look (15 points)
+
+### 1.1 Import the data (8 points)
+
+```{r}
+# palm_data <- read.delim("data/PalmTraits_1.0.txt",
+#                         header = TRUE,
+#                         stringsAsFactors = FALSE)
+```
+
+**Instructions:**
+
+- Import the file with `read.delim()` (it is tab-delimited, which is the default for `read.delim()`)
+- Show `dim(palm_data)`, `names(palm_data)`, and `head(palm_data, 5)`
+- Show `str(palm_data)`
+- In one or two sentences: how many species and variables are there? Which variables did R read as numbers, and which as text?
+
+### 1.2 Guided exploration in the Data Explorer (7 points)
+
+Open `palm_data` in Positron’s **Data Explorer** (Variables pane → table icon). Use the column headers to sort and the filter bar to filter. The summary panel on the left shows the percentage of missing values for each column.
+
+Answer these in your document, in text:
+
+1.  Sort by `MaxStemHeight_m` from largest to smallest. Which species is the tallest, and what is its growth form (look at `Climbing`)? Does a “height” of that size make sense for that growth form?
+
+2.  Filter to `Climbing` equal to 1. How many climbing species are there?
+
+3.  Which of these columns has the most missing values: `MaxStemHeight_m`, `Max_Blade_Length_m`, `AverageFruitLength_cm`, `AverageFruitWidth_cm`?
+
+4.  Look at the `UnderstoreyCanopy` column. Besides `understorey` and `canopy`, what other values appear? Is anything missing that R would **not** count as `NA`?
+
+Then confirm (a) and (b) with code, so the answers appear in your rendered document:
+
+```{r}
+# palm_data$SpecName[which.max(palm_data$MaxStemHeight_m)]
+# sum(palm_data$Climbing == 1)
+# table(palm_data$UnderstoreyCanopy)
+```
+
+------------------------------------------------------------------------
+
+## Part 2: Data Cleaning with Base R (35 points)
+
+### 2.1 Find the missing values (8 points)
+
+```{r}
+# Missing values in the whole dataset, and per column
+# sum(is.na(palm_data))
+# colSums(is.na(palm_data))
+
+# Percentage missing per column, sorted
+# pct_missing <- round(100 * colMeans(is.na(palm_data)), 1)
+# sort(pct_missing, decreasing = TRUE)
+
+# Duplicated rows
+# sum(duplicated(palm_data))
+```
+
+**Instructions:** run the code above, then write two or three sentences: which kinds of traits (stem, leaf, fruit) have the most missing data, and are there duplicated rows?
+
+### 2.2 Create a working subset (5 points)
+
+Keep only these columns:
+
+```{r}
+# keep <- c("SpecName", "Climbing", "Acaulescent", "Erect", "StemArmed",
+#           "MaxStemHeight_m", "Max_Blade_Length_m",
+#           "AverageFruitLength_cm", "AverageFruitWidth_cm")
+# palm_subset <- palm_data[, keep]
+# dim(palm_subset)
+```
+
+Report how many variables and observations your subset has.
+
+### 2.3 Handle missing values (8 points)
+
+We will keep the species that have **both** a stem height and a fruit length, since Parts 3 and 4 use those two variables the most:
+
+```{r}
+# key_vars <- c("MaxStemHeight_m", "AverageFruitLength_cm")
+# palm_clean <- palm_subset[complete.cases(palm_subset[, key_vars]), ]
+# nrow(palm_subset) - nrow(palm_clean)   # how many rows were removed?
+# colSums(is.na(palm_clean))             # what is still missing?
+```
+
+**Instructions:** run the code and answer in two or three sentences:
+
+- How many species did you remove, and what percentage of the data is that?
+- Which variables still have missing values? (That’s fine: use `na.rm = TRUE` when you summarize them.)
+- Could removing these species bias the results? Think about which kinds of palms are more likely to be missing measurements.
+
+### 2.4 Fix data types (6 points)
+
+`StemArmed` is stored as a number, but it is really a category. Convert it to a factor with readable labels, and check the result:
+
+```{r}
+# str(palm_clean$StemArmed)
+# palm_clean$StemArmed <- factor(palm_clean$StemArmed,
+#                                levels = c(0, 1),
+#                                labels = c("Unarmed", "Armed"))
+# table(palm_clean$StemArmed, useNA = "ifany")
+```
+
+**Instructions:** do the same for `Climbing`, using `levels = c(0, 1, 2)` and `labels = c("No", "Yes", "Both")`. Show `str(palm_clean)` after your conversions, and explain in one or two sentences why it matters that these variables are factors rather than numbers (think about what `mean()` or `summary()` would give you).
+
+### 2.5 Create new variables (8 points)
+
+1.  **Size category** from stem height. Run this code and show the table:
+
+```{r}
+# palm_clean$size_category <- ifelse(palm_clean$MaxStemHeight_m <= 5, "Small",
+#                             ifelse(palm_clean$MaxStemHeight_m <= 15, "Medium",
+#                             ifelse(palm_clean$MaxStemHeight_m <= 30, "Tall", "Very Tall")))
+# palm_clean$size_category <- factor(palm_clean$size_category,
+#                                    levels = c("Small", "Medium", "Tall", "Very Tall"))
+# table(palm_clean$size_category)
+```
+
+2.  **Fruit aspect ratio**: create `fruit_ratio` = `AverageFruitLength_cm` / `AverageFruitWidth_cm`. Use `summary()` on it. What does a ratio above 1 mean about the shape of the fruit? How many values are `NA`, and why?
+
+------------------------------------------------------------------------
+
+## Part 3: Descriptive Statistics (20 points)
+
+### 3.1 Summary statistics (10 points)
+
+For `MaxStemHeight_m` **and** `AverageFruitLength_cm`, calculate the mean, median, standard deviation, and the quartiles:
+
+```{r}
+# x <- palm_clean$MaxStemHeight_m
+# mean(x); median(x); sd(x)
+# quantile(x, probs = c(0, 0.25, 0.5, 0.75, 1))
+```
+
+Organize the results in a small data frame with one row per variable and one column per statistic, and print it.
+
+**Interpret:** For each variable, compare the mean and the median. What does the difference tell you about the shape of the distribution?
+
+### 3.2 Frequency tables (5 points)
+
+```{r}
+# table(palm_clean$size_category)
+# prop.table(table(palm_clean$size_category))
+
+# Two-way table: size category vs armature, with row proportions
+# tab <- table(palm_clean$size_category, palm_clean$StemArmed)
+# tab
+# round(prop.table(tab, margin = 1), 2)
+```
+
+**Interpret:** Which size category has the highest proportion of armed (spiny) palms? Write one sentence.
+
+### 3.3 Group summaries with `dplyr` (5 points)
+
+`group_by()` splits the data into groups, and `summarize()` calculates statistics for each group. The pipe `%>%` (read it as “then”) passes the result of one step to the next:
+
+```{r}
+# palm_clean %>%                       # start with the clean data, THEN
+#   group_by(StemArmed) %>%            # group it by armature, THEN
+#   summarize(
+#     n = n(),                                             # species per group
+#     mean_height = mean(MaxStemHeight_m),
+#     sd_height = sd(MaxStemHeight_m),
+#     median_fruit = median(AverageFruitLength_cm)
+#   )
+```
+
+**Instructions:** run this summary, then change it to group by `size_category` and add **one more statistic** of your choice (for example `max()` of stem height, or the median of `Max_Blade_Length_m` with `na.rm = TRUE`). Store the result as `palm_summary` and print it. (If you see an `NA` group, those are species whose armature is unknown.) Write one or two sentences about what it shows.
+
+------------------------------------------------------------------------
+
+## Part 4: Visualizations with Base R (15 points)
+
+For each plot, add a title and axis labels with units, and write **one or two sentences** interpreting it.
+
+### 4.1 Histogram of stem height (5 points)
+
+Use `hist()` on `MaxStemHeight_m`. Describe the shape. Then make a second histogram of `log10(MaxStemHeight_m + 1)` and compare. (Why `+ 1`? Look for zeros in the data.)
+
+### 4.2 Boxplot of stem height by armature (5 points)
+
+Use `boxplot(MaxStemHeight_m ~ StemArmed, data = palm_clean, ...)`. Are armed palms taller or shorter than unarmed palms, typically? Are there many outliers?
+
+### 4.3 Scatterplot of fruit dimensions (5 points)
+
+Plot `AverageFruitWidth_cm` (y) against `AverageFruitLength_cm` (x). Add the line `abline(0, 1)`, where length equals width. What does it mean for a species to be above or below that line? Use `cor(..., use = "complete.obs")` to report the correlation.
+
+------------------------------------------------------------------------
+
+## Part 5: Reflection (10 points)
+
+Write about **150 words** addressing:
+
+1.  **Cleaning decisions:** What was the biggest data quality issue you found, and how did your choices in Part 2 change the data you analyzed?
+2.  **Findings:** What are the two most interesting patterns you found about palm size, armature, or fruit shape?
+3.  **Workflow:** What was one thing that Positron’s Data Explorer or rendering your Quarto document helped you catch?
+
+------------------------------------------------------------------------
+
+## Optional Extensions
+
+These are **not graded**. They are good practice for HW3 and the midterm. If you do them, put them in a section called “Optional” at the end of your document.
+
+1.  **Outliers.** For `MaxStemHeight_m`, compute Q1, Q3, and the IQR with `quantile()`, and flag values above Q3 + 1.5 × IQR. List the flagged species. Are they errors, or real extreme values? (Some palms, like *Ceroxylon quindiuense*, exceed 60 m, and climbing *Calamus* can exceed 100 m in length.) Decide whether to keep, remove, or flag them, and explain why.
+2.  **A primary growth form variable.** Combine `Climbing`, `Acaulescent`, and `Erect` into a single factor with levels “Climbing”, “Acaulescent”, “Erect”, and “Mixed”, using nested `ifelse()`. Make a frequency table, then redo the boxplot in 4.2 grouped by growth form.
+3.  **More pipes.** Use `%>%` to (a) keep only climbing palms, (b) select three columns and show the first 5 rows, and (c) compute the mean stem height.
+4.  **Grouping by two variables.** Repeat 3.3 with `group_by(size_category, StemArmed)`.
+5.  **Base R vs. dplyr.** Reproduce your `palm_summary` means with `tapply()` or `aggregate()`. Which approach do you find easier to read?
+6.  **Multi-panel figure.** Use `par(mfrow = c(2, 2))` to combine your plots and a `barplot()` of size-category frequencies into one figure.
+
+------------------------------------------------------------------------
