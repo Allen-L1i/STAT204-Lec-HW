@@ -1,0 +1,64 @@
+---
+title: "Lec2"
+format: pdf
+---
+
+```{r}
+list1 <- list("Hangyu Li", c(5,6,8), matrix(c(1,2,3,4), 2, 2))
+
+list1[[2]][2]
+
+names(list1) <- c("name", "vector", "matrix")
+list1$matrix
+list1[["name"]]
+
+nth <- paste0(1:12, c("st", "nd", "rd", rep("th",9)))
+nth
+
+penguins <- palmerpenguins::penguins
+View(penguins)
+levels(penguins$species)
+mean(penguins$bill_length_mm, na.rm = TRUE)
+levels(penguins$island)
+table(penguins$island)
+
+set.seed(42)
+v <- rnorm(100, 50, 10)
+sum((v>=40 & v<=60)) / length(v)
+hist(v)
+
+
+my_range <- function(x){
+    return (max(x) - min(x))
+}
+standardize <- function(x){
+    return ((x - mean(x))/sd(x))
+}
+my_summary <- function(x){
+    result <- list(mean = mean(x, na.rm = TRUE), 
+                median = median(x, na.rm = TRUE), 
+                sd = sd(x, na.rm = TRUE))
+    return (result)
+}
+
+test_data <- c(12, 15, 18, 20, 22, 25, 30)
+
+my_range(test_data)
+standardize(test_data)
+my_summary(test_data)
+
+x <- matrix(rexp(6000000), ncol = 6000)
+system.time(sweep(x,2,colSums(x), FUN = '/'))
+
+
+x <- seq(-4,4,by = 0.1)
+y <- seq(-4,4,by = 0.1)
+
+data <- expand.grid(x,y)
+func <- function(x,y){
+    return ((1.5-x+x*y)**2 + (2.25-x+x*y**2)**2 + (2.625-x+x*y**3)**2)
+}
+result <- func(data[,1],data[,2])
+min(result)
+data[which.min(result),]
+```
