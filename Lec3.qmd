@@ -1,0 +1,50 @@
+```{r}
+library(palmerpenguins)
+penguins <- palmerpenguins::penguins
+
+mean(penguins$body_mass_g, na.rm = TRUE)
+sd(penguins$body_mass_g, na.rm = TRUE)
+
+boxplot(body_mass_g ~ species,penguins)
+
+with(penguins,tapply(body_mass_g, species, mean, na.rm = TRUE))
+
+heaviest_adelie <- max(penguins[penguins$species == 'Adelie', 'body_mass_g'], na.rm = TRUE)
+sum(penguins$species == 'Gentoo' & penguins$body_mass_g > heaviest_adelie, na.rm = TRUE) / nrow(penguins[penguins$species == 'Gentoo',])
+
+
+cuts = quantile(penguins$body_mass_g, c(0, 1/3, 2/3, 1), na.rm = TRUE)
+penguins$size = cut(penguins$body_mass_g, breaks = cuts,
+                    labels = c("light", "medium", "heavy"),
+                    include.lowest = TRUE, ordered_result = TRUE)
+
+adelie = subset(penguins, species == "Adelie")
+island_year = table(adelie$island, adelie$year)
+island_size = table(adelie$island, adelie$size)
+
+mosaicplot(island_year,shade = TRUE,
+           main = "Islands vs Years",
+           las = 1)
+mosaicplot(island_size,shade = TRUE,
+           main = "Islands vs Size",
+           las = 1)
+
+chisq.test(island_year)
+chisq.test(island_size)
+
+chisq.test(island_year)$expected <= 5
+chisq.test(island_size)$expected <= 5
+
+fisher.test(island_size)
+
+prop.table(island_year, margin = 1)
+
+
+library(ggplot2)
+ggplot(penguins, aes(x = bill_length_mm)) +
+    geom_histogram()
+
+ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
+    geom_point() +
+    labs(title = 'scatter')
+```

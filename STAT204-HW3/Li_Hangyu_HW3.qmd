@@ -1,0 +1,350 @@
+---
+title: "HW3: Exploratory Data Analysis"
+author: "Hangyu Li"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+---
+
+## Instructions
+
+<a href="HW3.qmd?raw" download="HW3.qmd">📄 Download this assignment as a Quarto file (HW3.qmd)</a>: open it in Positron and click **Preview** to get a standalone HTML copy you can read offline.
+
+This homework has two main components:
+
+1. **EDA Practice** (40 points): Explore coffee ratings data and write a brief report
+
+2. **Visualization Challenge** (60 points): Create the best professional plot AND the ugliest plot possible
+
+**Prizes will be awarded for:**
+- Best professional-looking plot
+- Best (worst?) ugly plot
+
+Please DO NOT use genAI for any part of the assignment. Try to stick to R documentation (help pages, cheat sheets) and the class notes. No tool is required, and no one is advantaged by paying for one. See the syllabus AI Policy for the reasons.
+
+**Where AI would fail here:** AI tends to produce generic plots that ignore the specific data problems in this dataset (outliers, missing altitude values, inconsistent units), invent `ggplot2` arguments that do not exist, and describe patterns in a plot it cannot see. Interpreting your own plot is the skill being practiced.
+
+**Homework check:** I may ask you to briefly explain one of your solutions in the Wednesday section (random sample, about 5 minutes). Be ready to walk through your own code and reasoning.
+
+---
+
+## Question 1: EDA Practice (40 points)
+
+Using data from the Coffee Quality Institute's review database (TidyTuesday 2020-07-07), explore the relationship between coffee altitude and quality scores across different countries.
+
+### Load the data
+
+```{r}
+#| warning: false
+#| message: false
+
+# Load the coffee ratings data
+coffee_ratings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-07/coffee_ratings.csv')
+
+# Preview the data
+head(coffee_ratings)
+```
+
+### Guiding questions:
+
+- How does altitude (meters above sea level) relate to total cup points (quality score)?
+- Which countries produce the highest-rated coffees?
+- Are there any outliers or missing values to address?
+- What patterns emerge across different processing methods or coffee varieties?
+
+### Your Analysis
+
+**Write your analysis here** (300 max words summarizing your findings with 2-3 appropriate visualizations)
+
+```{r}
+# Your EDA code here
+library(tidyverse)
+library(ggplot2)
+
+# summary(coffee_ratings)
+colSums(is.na(coffee_ratings))
+
+coffee_ratings$country_of_origin <- as.factor(coffee_ratings$country_of_origin)
+coffee_ratings$processing_method <- as.factor(coffee_ratings$processing_method)
+coffee_ratings$variety <- as.factor(coffee_ratings$variety)
+
+coffee_ratings |>
+  select(total_cup_points, altitude_mean_meters) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "value") |>
+  ggplot(aes(x = "", y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = NULL, y = NULL, title = "Before cleaning") +
+  theme_minimal()
+
+# Check records with zero scores
+coffee_ratings |>
+  filter(total_cup_points == 0) |>
+  select(
+    total_cup_points, aroma, flavor, aftertaste, acidity, body, balance,
+    uniformity, clean_cup, sweetness
+  )
+coffee_score <- coffee_ratings |>
+  filter(total_cup_points > 0)
+
+# Dataset for altitude analysis
+coffee_alt_clean <- coffee_score |>
+  filter(!is.na(altitude_mean_meters))
+
+# Clean mistaken data by data explorer
+coffee_alt_clean[coffee_alt_clean$altitude_mean_meters == 190164,
+                'altitude_mean_meters'] <- 1901.64
+coffee_alt_clean[coffee_alt_clean$altitude_mean_meters == '1800 meters (5900',
+                'altitude_mean_meters'] <- 1800
+
+coffee_alt_clean <- coffee_alt_clean |>
+  filter(altitude_mean_meters > 0,
+    altitude_mean_meters < 3000)
+
+# Check after cleaning
+coffee_alt_clean |>
+  select(total_cup_points, altitude_mean_meters) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "value") |>
+  ggplot(aes(x = "", y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free_y") +
+  labs(x = NULL, y = NULL, title = "After cleaning") +
+  theme_minimal()
+
+ggplot(coffee_alt_clean, aes(x = altitude_mean_meters, y = total_cup_points)) +
+  geom_point(color = "blue", alpha = 0.4) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(x = "Altitude (meters above sea level)",
+    y = "Total cup points") +
+  theme_minimal()
+
+country_score_avg_tbl <- coffee_score |>
+  filter(!is.na(country_of_origin)) |>
+  select(country_of_origin, total_cup_points) |>
+  group_by(country_of_origin) |>
+  summarize(n = n(),
+    avg_points = mean(total_cup_points),
+    med_points = median(total_cup_points)) |>
+  arrange(desc(avg_points))
+
+head(country_score_avg_tbl)
+head(country_score_avg_tbl |> filter(n >= 5)) 
+
+country_score_med_tbl <- coffee_score |>
+  filter(!is.na(country_of_origin)) |>
+  select(country_of_origin, total_cup_points) |>
+  group_by(country_of_origin) |>
+  summarize(n = n(),
+    avg_points = mean(total_cup_points),
+    med_points = median(total_cup_points)) |>
+  arrange(desc(med_points))
+
+head(country_score_med_tbl)
+head(country_score_med_tbl |> filter(n >= 5)) 
+
+
+# Dataset for processing & variety analysis
+coffee_processing_clean <- coffee_score |>
+  filter(!is.na(processing_method))
+coffee_variety_clean <- coffee_score |>
+  filter(!is.na(variety))
+
+p_processing <- coffee_processing_clean |>
+  ggplot(aes(x = processing_method, y = total_cup_points)) +
+  geom_boxplot() +
+  labs(x = NULL, y = NULL, title = "Processing Methods") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 10, hjust = 0.5))
+
+country_score_tbl <- coffee_score |>
+  filter(!is.na(country_of_origin)) |>
+  select(country_of_origin, total_cup_points) |>
+  group_by(country_of_origin) |>
+  summarize(n = n(),
+    avg_points = mean(total_cup_points),
+    med_points = median(total_cup_points)) |>
+  arrange(desc(avg_points))
+
+p_variety <- coffee_variety_clean |>
+  group_by(variety) |>
+  filter(n() > 10) |>
+  ungroup() |>
+  ggplot(aes(x = variety, y = total_cup_points)) +
+  geom_boxplot() +
+  labs(x = NULL, y = NULL, title = "Variety") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 0.5))
+
+library(patchwork)
+
+p_processing / p_variety
+```
+
+From `colSums(is.na(coffee_ratings))`, we found lots of NAs in the raw data especially in the altitude, variety and processing method. Along with the **Before cleaning** boxplot , we found several extreme values. First, we removed records with NA values in the variables needed for each analysis. Since all component scores of this 0-score record are 0, we removed this record. After inspecting the data explorer, for altitude, there are two mistaken observations and we corrected them. Later on we kept only those observations with `0 < altitude < 3000` because for the altitude analysis we assumed this was a reasonable range for coffee-growing elevations. 
+
+Given the scatter plot of altitude and scores, we have a slightly upward trend line, which indicates a positive correlation between altitude and scores. However, the points are quite scattered, with substantial variation in scores at similar altitude.
+
+To determine which country has the best coffee, we selected those with at least 5 observations to keep a more consistent result and compared their average and median scores. We found that Ethiopia has the best average scores and United States has the best median points which suggests these two places are the best coffee origin in our data.
+
+And we also compared the difference between different processing methods and coffee varieties including only varieties with more than 10 observations for consistency. The boxplots show similar median scores across processing methods. Some differences appear across varieties, with SL14 and SL28 having relatively higher medians, although the distributions overlap.
+
+---
+
+## Question 2: Visualization Challenge (60 points)
+
+Here's a basic (and perhaps a bit ugly) scatterplot of altitude vs. quality score in both Base R and ggplot2:
+
+### Base R version
+
+```{r}
+#| fig-width: 6
+#| fig-height: 4
+
+# Clean data: remove missing values and outliers
+coffee_clean <- coffee_ratings[!is.na(coffee_ratings$altitude_mean_meters) & 
+                                !is.na(coffee_ratings$total_cup_points) &
+                                coffee_ratings$altitude_mean_meters > 0 &
+                                coffee_ratings$altitude_mean_meters < 3000, ]
+
+plot(coffee_clean$altitude_mean_meters, coffee_clean$total_cup_points,
+     xlab = "Altitude (meters)",
+     ylab = "Total Cup Points",
+     col = factor(coffee_clean$country_of_origin),
+     pch = 16)
+```
+
+### ggplot2 version
+
+```{r}
+#| warning: false
+#| fig-width: 6
+#| fig-height: 4
+
+library(ggplot2)
+library(dplyr)
+
+# Clean the data
+coffee_clean <- coffee_ratings %>%
+  filter(!is.na(altitude_mean_meters),
+         !is.na(total_cup_points),
+         altitude_mean_meters > 0,
+         altitude_mean_meters < 3000)
+
+ggplot(coffee_clean, aes(x = altitude_mean_meters, y = total_cup_points, 
+                         color = country_of_origin)) +
+  geom_point() +
+  labs(x = "Altitude (meters)", y = "Total Cup Points")
+```
+
+---
+
+### Part A: Professional Plot (30 points + prize eligibility)
+
+Recreate this plot to make it **publication-ready**. Consider:
+
+- Appropriate color schemes (maybe focus on top countries only?)
+- Professional themes
+- Informative annotations
+- Trend lines or smoothing
+- Proper labels and titles
+- Faceting if appropriate
+- Any other improvements for clarity and aesthetics
+
+```{r}
+#| warning: false
+#| fig-width: 8
+#| fig-height: 6
+
+# Your professional plot code here
+library(patchwork)
+
+p_full <- ggplot(coffee_alt_clean,
+  aes(x = altitude_mean_meters, y = total_cup_points)) +
+  geom_point(color = "cadetblue4", alpha = 0.35, size = 1.5) +
+  geom_smooth(method = "lm", color = "coral2", linewidth = 0.8) +
+  labs(title = "Relation between Coffee Scores and Altitude",
+    x = "Altitude (meters above sea level)",
+    y = "Total cup points") +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
+
+
+top_countries <- country_score_avg_tbl |>
+  filter(n >= 5) |>
+  slice_head(n = 6)
+
+coffee_focus <- coffee_alt_clean |>
+  filter(country_of_origin %in% top_countries$country_of_origin)
+
+coffee_focus$country_of_origin <- factor(
+  coffee_focus$country_of_origin,
+  levels = top_countries |>
+    arrange(desc(avg_points)) |>
+    pull(country_of_origin))
+
+p_focus <- ggplot(coffee_focus,
+    aes(x = altitude_mean_meters, y = total_cup_points, 
+    color = country_of_origin)) +
+  geom_point(alpha = 0.5, size = 1.5) +
+  geom_smooth(method = "lm", se = FALSE, linewidth = 0.8) +
+  scale_color_brewer(palette = "Accent") +
+  labs(title = "Deep Dive into Highest-rated Countries",
+    x = "Altitude (meters above sea level)",
+    y = "Total cup points",
+    color = "Country") +
+  facet_wrap(~ country_of_origin, ncol = 3) +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 10),
+    legend.position = "none")
+
+(p_full / p_focus) +
+  plot_annotation(tag_levels = "A")
+```
+
+**Describe your design choices** (2-3 sentences):
+
+---
+
+### Part B: Ugly Plot Competition (30 points + prize eligibility)
+
+Take the same data and make the **worst possible visualization**. Be creative in violating every principle of good data visualization!
+
+**Rules:**
+- The plot must still technically display the data
+- Have fun breaking all the rules!
+
+```{r}
+#| warning: false
+#| fig-width: 8
+#| fig-height: 6
+
+# Your ugly plot code here
+ggplot(coffee_alt_clean,
+  aes(x = altitude_mean_meters, y = total_cup_points)) +
+  geom_point(size = 3.5) +
+  geom_smooth(linewidth = 1.5) +
+  theme(panel.background = element_rect(fill = "lightyellow"),
+    panel.grid.major = element_line(
+      color = "pink", linewidth = 1.2),
+    panel.grid.minor = element_line(
+      color = "pink", linewidth = 0.8))
+
+```
+
+**What makes your plot so terrible?** (List 3-5 violations of good visualization principles):
+
+1. The large, opaque points overlap heavily, making the distribution difficult to see.
+2. The thick pink gridlines distract attention from the data.
+3. There is no title of this plot and the axis labels are not informative.s
+
+---
+
+## References
+
+TidyTuesday: Coffee Ratings (2020-07-07). Data from Coffee Quality Institute's review database. https://github.com/rfordatascience/tidytuesday/blob/master/data/2020/2020-07-07/readme.md
+
+Coffee Quality Institute. https://www.coffeeinstitute.org/
