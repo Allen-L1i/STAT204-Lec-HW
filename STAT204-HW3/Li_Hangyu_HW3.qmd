@@ -339,7 +339,7 @@ ggplot(coffee_alt_clean,
 
 1. The large, opaque points overlap heavily, making the distribution difficult to see.
 2. The thick pink gridlines distract attention from the data.
-3. There is no title of this plot and the axis labels are not informative.s
+3. There is no title of this plot and the axis labels are not informative.
 
 ---
 
