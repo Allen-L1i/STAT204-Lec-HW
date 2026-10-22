@@ -26,4 +26,38 @@ penguins |>
     geom_col(position = "dodge") +
     labs(x = "species", y = "median flipper length")
 
+
+
+
+# Fit a simple linear regression model using LA
+library(palmerpenguins)
+penguins <- palmerpenguins::penguins
+
+# Extract the response variable (y)
+y <- penguins$body_mass_g
+
+# Create the design matrix (X)
+# Include intercept (column of 1s) and predictor variable
+X <- cbind(1, penguins$flipper_length_mm)
+
+# Remove rows with missing values (to match what lm() does)
+complete_cases <- complete.cases(y, X)
+y <- y[complete_cases]
+X <- X[complete_cases, ]
+
+# Calculate coefficients using linear algebra: β = (X'X)^(-1)X'y
+beta_hat <- solve(t(X) %*% X) %*% t(X) %*% y ## complete the code 
+beta1_hat <- sum((X[,2] - mean(X[,2])) %*% (y - mean(y))) / sum((X[,2] - mean(X[,2]))**2)
+beta0_hat <- mean(y) - beta1_hat * mean(X[,2])
+
+# Display the results
+beta_hat
+
+# Compare with lm() results
+model1 <- lm(body_mass_g ~ flipper_length_mm, data = penguins)
+coef(model1)
+
+# Give names to our manually calculated coefficients
+rownames(beta_hat) <- c("(Intercept)", "flipper_length_mm")
+beta_hat
 ```
