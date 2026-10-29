@@ -1,0 +1,119 @@
+```{r}
+penguins <- palmerpenguins::penguins
+
+model1 <- lm(body_mass_g ~ flipper_length_mm, data = penguins)
+model2 <- lm(body_mass_g ~ flipper_length_mm + bill_length_mm + bill_depth_mm,
+             data = penguins)
+summary(model2)
+confint(model2)
+
+library(tidyverse)
+library(ggplot2)
+
+# Add predictions to data
+penguins_fit <- penguins %>%
+  drop_na(any_of(c("body_mass_g","bill_length_mm",
+  "bill_depth_mm")))%>%
+  mutate(fitted = fitted(model2),
+         residuals = residuals(model2))
+
+# Plot actual vs fitted
+ggplot(penguins_fit, aes(x = fitted, y = body_mass_g)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  labs(title = "Actual vs Fitted Values", x = "Fitted Body Mass (g)",y = "Actual Body Mass (g)")
+
+library(ggplot2)
+
+# Add predictions to data
+penguins_fit <- penguins %>%
+  drop_na(any_of(c("body_mass_g","bill_length_mm",
+  "bill_depth_mm")))%>%
+  mutate(fitted = fitted(model2),
+         residuals = residuals(model2))
+
+# Plot actual vs fitted
+ggplot(penguins_fit, aes(x = fitted, y = body_mass_g)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "blue") +
+  labs(title = "Actual vs Fitted Values", x = "Fitted Body Mass (g)",y = "Actual Body Mass (g)")
+
+# Include species as a categorical predictor
+model3 <- lm(body_mass_g ~ flipper_length_mm + species,
+             data = penguins)
+
+summary(model3)
+
+# Include an interaction between flipper length and species
+model4 <- lm(body_mass_g ~ flipper_length_mm + species +
+               flipper_length_mm:species,
+             data = penguins)
+
+# Shorthand
+model4 <- lm(body_mass_g ~ flipper_length_mm * species,
+             data = penguins)
+
+summary(model4)
+
+# See it: one fitted line per species. Different slopes = interaction
+ggplot(penguins, aes(x = flipper_length_mm, y = body_mass_g, color = species)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE)
+
+# Create all four diagnostic plots at once
+par(mfrow = c(2, 2))
+plot(model2)
+par(mfrow = c(1, 1))
+
+# Questions:
+# 1. Does normality seem reasonable?
+# 2. Is variance constant?
+# 3. Are there any influential points?
+# 4. Overall, are assumptions satisfied? For which goal does it matter?
+
+# Generate data with a simple relationship
+set.seed(123)
+x <- seq(0, 10, length.out = 20)
+y <- 2 + 3*x + rnorm(20, sd = 5)
+
+# Fit models of increasing complexity
+fit_linear <- lm(y ~ x)
+fit_cubic <- lm(y ~ poly(x, 3))
+fit_10 <- lm(y ~ poly(x, 10))
+
+# Plot and compare
+par(mfrow=c(1,3))
+plot(x, y, main="Linear (Simple)")
+abline(fit_linear, col="red", lwd=2)
+
+plot(x, y, main="Cubic (Moderate)")
+lines(sort(x), fitted(fit_cubic)[order(x)], col="blue", lwd=2)
+
+plot(x, y, main="10th degree (Complex)")
+lines(sort(x), fitted(fit_10)[order(x)], col="green", lwd=2)
+
+
+
+library(caret)
+library(palmerpenguins)
+
+# Remove missing values first, so all models use the same rows
+penguins_clean <- na.omit(penguins[, c("body_mass_g", "flipper_length_mm",
+                                        "bill_length_mm", "bill_depth_mm",
+                                        "species", "sex")])
+
+ctrl <- trainControl(method = "cv", number = 10)
+
+# Same seed = same folds for every model
+cv_results <- function(formula) {
+  set.seed(204)
+  train(formula, data = penguins_clean, method = "lm", trControl = ctrl)$results
+}
+
+rbind(
+  simple   = cv_results(body_mass_g ~ flipper_length_mm),
+  moderate = cv_results(body_mass_g ~ flipper_length_mm + bill_length_mm + species),
+  complex  = cv_results(body_mass_g ~ flipper_length_mm + bill_length_mm +
+                          bill_depth_mm + species + sex)
+)
+```

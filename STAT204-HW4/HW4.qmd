@@ -1,0 +1,234 @@
+---
+title: "Homework: Statistical Modeling and Interpretation"
+subtitle: "Due Thursday, November 12, 2026, 11:59 pm (Pacific)"
+author: "Your Name"
+date: "27 October 2026"
+format:
+  html:
+    toc: true
+    code-fold: true
+    embed-resources: true
+---
+
+## Instructions
+
+This homework focuses on **interpretation and presentation of statistical results**. You will apply linear regression (with categorical predictors and interactions) and logistic regression to the Bechdel Test movie dataset.
+
+**Total Points: 100**
+
+1.  **Linear Regression** (30 points)
+2.  **Logistic Regression** (30 points)
+3.  **Comprehensive Analysis** (25 points)
+4.  **Same Data, Different Goals** (15 points)
+
+**Submission Requirements:**
+
+- Self-contained HTML document with code hidden (use `code-fold: true`)
+- Focus on clear interpretation of results, not code mechanics
+- Please DO NOT use any LLMs in writing your answers. No tool is required, and no one is advantaged by paying for one (see the syllabus AI Policy).
+- **Where AI would fail here:** AI often gives textbook-generic interpretations that misstate coefficient meanings (for example, treating log-odds as probabilities), claim assumptions are satisfied without looking at your diagnostic plots, and invent p-values or effect sizes. Your interpretation of *your* output is what is graded.
+- **Homework check:** I may ask you to briefly explain one of your solutions in the Wednesday section (random sample, about 5 minutes).
+- Include well-formatted tables and figures
+- Write results as if for a technical report
+
+------------------------------------------------------------------------
+
+## Background: The Bechdel Test
+
+The Bechdel Test measures female representation in films. A movie passes if it has:
+
+1.  At least two named women
+2.  Who talk to each other
+3.  About something besides a man
+
+In the data, `clean_test` records where each movie stops: `nowomen` (fewer than two named women), `notalk` (they don’t talk to each other), `men` (they only talk about a man), `dubious` (disputed), or `ok` (passes). The variable `binary` is `PASS` only for `ok`; everything else, including `dubious`, is `FAIL`.
+
+------------------------------------------------------------------------
+
+## The Goal of This Homework: Description
+
+As we saw in Week 5, the same model can be used to **describe**, to **infer** or to **predict**, and the goal changes what you report and what you check. **In this homework the goal is description.**
+
+The data are 1794 movies released between 1970 and 2013 that FiveThirtyEight could match between [BechdelTest.com](https://bechdeltest.com/) (ratings submitted by volunteers) and [The-Numbers.com](https://www.the-numbers.com/) (budget and revenue). This is not a random sample of all movies: it leans toward movies that are popular enough for someone to rate them and for their finances to be public.
+
+So every research question below asks: **what patterns are there in these movies?** Some movies have missing values, so each model will use fewer than 1794; report how many movies each model uses. In your answers:
+
+- Describe associations in these movies. Write “among these movies, …” and not “movies in general …”
+- Do not make causal claims. A coefficient for budget is not “the effect of spending one more dollar”
+- Report effect sizes (coefficients, odds ratios, fitted values) and show them in figures. When p-values and confidence intervals are requested, treat them as a rough guide to how precisely these data pin down a pattern, not as a claim about a population
+- Check the assumptions that matter for description: is a straight line (or the model you chose) an honest summary of the pattern?
+
+### Recommended: Use the PCS Framework
+
+We recommend framing your analysis with Yu & Barter’s **PCS framework** from Week 3 ([*Veridical Data Science*](https://vdsbook.com/), Ch. 1-2): is each pattern you describe real, or a product of noise and your own choices?
+
+- **Predictability:** Does the pattern reemerge in data you didn’t use to find it, for example in a held-out half of the movies? Is it consistent with what you know about the movie industry?
+- **Computability:** Every number in your report comes from code in the document. Every judgment call (log scale or not, units, rows dropped, how you treat `dubious`) is a line of code with a comment saying *why*. Use `set.seed()` before anything random.
+- **Stability:** Does your conclusion survive reasonable alternative choices? For example: raw vs. log scale, dropping the few biggest blockbusters, or treating `dubious` movies as missing instead of `FAIL`.
+
+You don’t need to run every check for every question. Pick the ones that matter most for your conclusions and mention them briefly in your write-up.
+
+------------------------------------------------------------------------
+
+## Load the Data
+
+```{r}
+library(tidyverse)
+library(broom)
+library(knitr)
+
+# Load the movies dataset (1970-2013)
+# Missing values are coded as "#N/A" or "N/A" in the file
+movies <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-03-09/movies.csv',
+                          na = c("", "NA", "#N/A", "N/A"))
+
+# Preview
+glimpse(movies)
+```
+
+**Key Variables:**
+
+- `binary`: Pass/Fail the Bechdel test
+- `clean_test`: Where the movie stops on the test (`nowomen`, `notalk`, `men`, `dubious`, `ok`)
+- `budget_2013`: Movie budget (adjusted to 2013 dollars)
+- `domgross_2013`: Domestic gross revenue (2013 dollars)
+- `intgross_2013`: International gross revenue (2013 dollars)
+- `year`: Release year
+- `imdb_rating`: IMDB rating (1-10 scale)
+- `metascore`: Metacritic score (0-100)
+- `rated`: MPAA rating (G, PG, PG-13, R, etc.)
+
+Budgets and revenues are in dollars. Consider dividing them by 1,000,000 so that coefficients are per million dollars and easier to read.
+
+------------------------------------------------------------------------
+
+## Question 1: Linear Regression (30 points)
+
+**Research Question (descriptive):** Among these movies, how does domestic gross revenue change with budget? Is that pattern different for movies that pass vs. fail the Bechdel test?
+
+You are describing how revenue and budget move together in this dataset, and whether the line looks different for the two groups. You are *not* estimating how much extra revenue a studio would get by spending more, and not predicting the revenue of future movies.
+
+### Part A: Model Fitting (10 points)
+
+Fit a linear regression model relating domestic gross revenue to budget, Bechdel test result (binary), and their interaction. Include a plot of the data with one fitted line per Bechdel group.
+
+```{r}
+# Your code here
+# Hint: You may need to clean data (remove NAs, log-transform if appropriate)
+```
+
+### Part B: Interpretation (10 points)
+
+In 3-4 sentences, interpret:
+
+1.  The coefficient for budget, as a description of these movies
+2.  The coefficient for the interaction term: how different are the two fitted lines?
+3.  The practical significance of your findings: is the difference between groups large enough to matter?
+
+**Your interpretation here:**
+
+### Part C: Diagnostic Plots (10 points)
+
+Create 2 diagnostic plots and briefly comment on whether model assumptions are reasonably met. For description, focus on whether the fitted lines are an honest summary of the data (for example, curvature, or a few huge blockbusters driving the fit).
+
+```{r}
+# Your diagnostic plots here
+```
+
+**Comment on assumptions (2-3 sentences):**
+
+------------------------------------------------------------------------
+
+## Question 2: Logistic Regression (30 points)
+
+**Research Question (descriptive):** Among these movies, which characteristics are associated with passing the Bechdel test? In particular, did the share of movies that pass change between 1970 and 2013, once we account for budget and IMDB rating?
+
+You are describing which kinds of movies in this dataset tend to pass. You are *not* building a tool to predict whether a new movie will pass, and not claiming that a bigger budget or a better rating causes a movie to pass (or the other way around).
+
+### Part A: Model Fitting (10 points)
+
+Fit a logistic regression model relating Bechdel test pass/fail to budget, year, and IMDB rating.
+
+```{r}
+# Your code here
+# Note: Create a binary outcome (0/1) from the 'binary' variable
+```
+
+### Part B: Coefficient Interpretation (10 points)
+
+Present a table of odds ratios with 95% confidence intervals. Interpret the odds ratio for year in context. Make sure the units of each odds ratio make sense to a reader (for example, per million dollars of budget, or per decade instead of per year).
+
+```{r}
+# Your table here (consider using tidy() and exp() for odds ratios)
+```
+
+**Interpretation (4-5 sentences):**
+
+### Part C: Fitted Probabilities and Visualization (10 points)
+
+Create a visualization showing the fitted probability of passing the Bechdel test over time (holding other variables at their means). Include confidence bands if possible.
+
+```{r}
+# Your visualization here
+```
+
+**Describe the trend (2-3 sentences):**
+
+------------------------------------------------------------------------
+
+## Question 3: Comprehensive Analysis (25 points)
+
+**Research Question (descriptive):** Among the movies in this dataset rated G, PG, PG-13 or R, does the relationship between budget and revenue look different across MPAA ratings?
+
+Most movies are PG-13 or R, and there are only 36 G-rated movies, so some patterns will be much less certain than others: say so where it matters. Drop movies with other or missing ratings, and say how many you dropped.
+
+Conduct an appropriate descriptive analysis (your choice of method, for example a regression with an interaction, or one fitted line per rating) and present your findings professionally.
+
+### Your Analysis
+
+```{r}
+# Your code here
+```
+
+### Findings
+
+**Write a brief results section (150-200 words) as if for a technical report. Include:**
+
+- Description of your analytical approach
+- Key statistical findings
+- At least one figure or table
+- How stable your main finding is (PCS), for example to the G-rated movies or to the scale you chose
+- Interpretation in context of the research question
+
+------------------------------------------------------------------------
+
+## Question 4: Same Data, Different Goals (15 points)
+
+Choose **one** of Questions 1-3. Suppose the goal were not description:
+
+a.  **Inference.** You want to make claims about a larger population of movies. What population could that be, and is this dataset a good sample of it? What would you change about how you choose the model, which assumptions you check, and what you report?
+
+b.  **Prediction.** You want to predict the outcome for a *new* movie. When would the prediction be made (for example, before release)? Which variables would actually be available at that time? How would you choose the model, measure how well it predicts, and what would you report?
+
+**Your answer (200-300 words, covering both a and b):**
+
+------------------------------------------------------------------------
+
+## Submission Checklist
+
+- [ ] All code runs without errors
+- [ ] Code is hidden in the HTML (`code-fold: true`)
+- [ ] All interpretations are in your own words and contextual
+- [ ] Figures have proper labels and captions
+- [ ] Tables are well-formatted
+- [ ] Statistical results include relevant values (effect sizes, and p-values or confidence intervals where requested)
+- [ ] Conclusions describe these movies, with no causal claims or claims about all movies
+- [ ] Each model reports how many movies it uses
+- [ ] No AI tools were used (per the syllabus AI Policy)
+
+------------------------------------------------------------------------
+
+## References
+
+TidyTuesday: Bechdel Test (2021-03-09). Data from FiveThirtyEight and The Bechdel Test website.  
+https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-03-09/readme.md
