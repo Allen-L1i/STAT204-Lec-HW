@@ -116,4 +116,56 @@ rbind(
   complex  = cv_results(body_mass_g ~ flipper_length_mm + bill_length_mm +
                           bill_depth_mm + species + sex)
 )
+
+
+flicker <- read.table(
+  file="http://www.statsci.org/data/general/flicker.txt",
+  header=TRUE, stringsAsFactors=TRUE)
+levels(flicker$Colour)
+
+# Summary statistics by group
+meansd <- function(x) c(mean=mean(x), sd=sd(x))
+by(flicker$Flicker, flicker$Colour, FUN=meansd)
+
+boxplot(Flicker ~ Colour, data=flicker,
+        ylab="Flicker", col=c('Blue','Brown','Green'))
+
+
+
+
+# Does flipper length differ by species?
+model_flipper <- aov(flipper_length_mm ~ species,
+                     data=penguins)
+summary(model_flipper)
+
+# Check assumptions
+par(mfrow=c(2,2))
+plot(model_flipper)
+
+library(car)
+leveneTest(flipper_length_mm ~ species, data=penguins)
+by(penguins$flipper_length_mm, penguins$species,
+   sd, na.rm=TRUE)
+
+# Effect size (eta-squared)
+ss <- summary(model_flipper)[[1]]$"Sum Sq"
+ss[1] / sum(ss)
+
+
+# Continue with the penguin flipper length analysis
+
+# 1. Perform Tukey's HSD
+tukey_results <- TukeyHSD(model_flipper)
+tukey_results
+plot(tukey_results)
+
+# 2. Try different adjustment methods
+pairwise.t.test(penguins$flipper_length_mm, penguins$species,
+                p.adjust = "none")
+
+pairwise.t.test(penguins$flipper_length_mm, penguins$species,
+                p.adjust = "bonferroni")
+
+pairwise.t.test(penguins$flipper_length_mm, penguins$species,
+                p.adjust = "holm")
 ```

@@ -1,7 +1,7 @@
 ---
 title: "Homework: Statistical Modeling and Interpretation"
 subtitle: "Due Thursday, November 12, 2026, 11:59 pm (Pacific)"
-author: "Your Name"
+author: "Hangyu Li"
 date: "27 October 2026"
 format:
   html:
@@ -115,6 +115,24 @@ Fit a linear regression model relating domestic gross revenue to budget, Bechdel
 ```{r}
 # Your code here
 # Hint: You may need to clean data (remove NAs, log-transform if appropriate)
+
+movies_clean <- movies |> 
+  mutate(binary = as.factor(binary),
+  budget_million = budget_2013/1e6,
+  domgross_million = domgross_2013/1e6) |> 
+  select(title, binary, budget_million, domgross_million) |> 
+  drop_na()
+  
+m1 <- movies_clean |> lm(domgross_million ~ budget_million + binary + budget_million:binary, data= _)
+summary(m1)
+
+ggplot(movies_clean, aes(x = budget_million, y = domgross_million, colour = binary)) +
+  geom_point(alpha = 0.4) +
+  geom_line(aes(y = m1$fitted.values)) +
+  theme_minimal() +
+  labs(title = "Association Between Domestic Gross Income and Budget",
+  x = "Budget (M)", y = "Domestic Gross Income (M)",
+  colour = "Wether Pass the Bachdel Test")
 ```
 
 ### Part B: Interpretation (10 points)
@@ -127,15 +145,28 @@ In 3-4 sentences, interpret:
 
 **Your interpretation here:**
 
+1. The coefficient for budget is 0.9351, which means the predicted domestic gross income of a movie that does not pass the Bechdel test will increase 0.9351 million dolloars on average as the budget of the movie increases for 1 million dollars.
+2. The coefficient for interaction term is 0.2969, which means that the slope for movies that pass the Bechdel test is 0.2969 higher than that for movies that do not pass. It indicates that the predicted domestic gross income of a movie that passes the Bechdel test will increase (0.9351+0.2969) = 1.232 million dolloars on average as the budget of the movie increases for 1 million dollars.
+3. The t-test for both binary variable and the interaction term both indicate that the difference between groups is statistically large enough to matter since the p-values are smaller than 0.05 and can suggest that at 5% significance level, we can reject the H_0 of the t-test.
+
 ### Part C: Diagnostic Plots (10 points)
 
 Create 2 diagnostic plots and briefly comment on whether model assumptions are reasonably met. For description, focus on whether the fitted lines are an honest summary of the data (for example, curvature, or a few huge blockbusters driving the fit).
 
 ```{r}
 # Your diagnostic plots here
+library(patchwork)
+par(mfrow = c(1, 2))
+plot(m1, which = c(1,5))
+
+movies_clean[c(451, 1431,1743),]
+
 ```
 
 **Comment on assumptions (2-3 sentences):**
+
+From the left panel, the line is almost flat indicating that there is no clear curvature and the assumption of linearity is satisfied. From the right panel, we can observe some extreme values including Avatar, Titanic and Star Wars which are the hugebusters. However, their Cook's distance don't exceed 0.5 which means there is no clear evidence showing they strongly influence our fit.
+
 
 ------------------------------------------------------------------------
 
@@ -152,6 +183,17 @@ Fit a logistic regression model relating Bechdel test pass/fail to budget, year,
 ```{r}
 # Your code here
 # Note: Create a binary outcome (0/1) from the 'binary' variable
+
+movies_clean <- movies |> 
+  mutate(binary = factor(binary, levels = c("FAIL", "PASS")),
+  budget_million = budget_2013/1e6,
+  decade = year/10) |> 
+  select(title, decade, binary, budget_million, imdb_rating) |> 
+  drop_na()
+
+m2 <- movies_clean |> glm(binary ~ budget_million + decade + imdb_rating, 
+    data = _,family = binomial(link = 'logit'))
+summary(m2)
 ```
 
 ### Part B: Coefficient Interpretation (10 points)
@@ -160,9 +202,13 @@ Present a table of odds ratios with 95% confidence intervals. Interpret the odds
 
 ```{r}
 # Your table here (consider using tidy() and exp() for odds ratios)
+tidy(m2, conf.int = TRUE, conf.level = 0.95, exponentiate = TRUE) |> 
+  select(term, estimate, conf.low, conf.high)
 ```
 
 **Interpretation (4-5 sentences):**
+
+The odds ratio for year is 1.20, which means that holding budgets and imdb ratings the same, the odds for a movie to pass the Bechdel test will increase 20% as 10 years pass. The 95% confidence interval is (1.07, 1.35), suggesting that the odds increase by 7% to 35% per decade. This suggests that the more recent a movie is, the odds of passing the Bechdel test after accounting for budget and IMDB rating will be higher.
 
 ### Part C: Fitted Probabilities and Visualization (10 points)
 
@@ -170,9 +216,30 @@ Create a visualization showing the fitted probability of passing the Bechdel tes
 
 ```{r}
 # Your visualization here
+plot_data <- movies_clean |>
+  summarise(budget_million = mean(budget_million),
+    imdb_rating = mean(imdb_rating)) |> 
+  slice(rep(1, 100)) |> 
+  mutate(decade = seq(min(movies_clean$decade),
+                      max(movies_clean$decade),
+                      length.out = 100))
+
+fit_m2 <- predict(m2, plot_data, se.fit = TRUE)
+plot_data <- plot_data |> 
+  mutate(fit_prob = plogis(fit_m2$fit),
+  fit_upper = plogis(fit_m2$fit + 1.96*fit_m2$se.fit),
+  fit_lower = plogis(fit_m2$fit - 1.96*fit_m2$se.fit))
+
+ggplot(plot_data, aes(x = decade * 10, y = fit_prob)) +
+  geom_line(aes(y = fit_prob)) +
+  geom_ribbon(aes(ymin = fit_lower, ymax = fit_upper), fill = "lightblue", alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "Year", y = "Probability of Passing Bachdel Test")
 ```
 
 **Describe the trend (2-3 sentences):**
+
+The trend of the fitted line is increasing. The width of confidence band is decreasing first from around 1970 - 2000 and then increasing from arond 2000 - 2013.
 
 ------------------------------------------------------------------------
 
@@ -188,6 +255,53 @@ Conduct an appropriate descriptive analysis (your choice of method, for example 
 
 ```{r}
 # Your code here
+movies_clean <- movies |> 
+  mutate(rated = factor(rated),
+  budget_million = budget_2013/1e6,
+  revenue_million = (domgross_2013 + intgross_2013)/1e6) |> 
+  select(title, year, rated, budget_million, revenue_million) |> 
+  drop_na() |> 
+  filter(rated %in% c("G", "PG", "PG-13", "R"))
+
+nrow(movies) - nrow(movies_clean)
+
+
+m3 <- movies_clean |> lm(revenue_million ~ rated + budget_million + 
+  rated:budget_million, data = _)
+summary(m3)
+
+par(mfrow = c(2, 2))
+plot(m3)
+
+ggplot(movies_clean, aes(x = budget_million, y = revenue_million, colour = rated)) +
+  geom_point(alpha = 0.4) +
+  geom_line(aes(y = m3$fitted.values)) +
+  theme_minimal() +
+  labs(title = "Association Between Total Revenue and Budget",
+  x = "Budget (M)", y = "Total Revenue (M)",
+  colour = "MPAA Rating")
+
+
+g_rows <- which(movies_clean$rated == "G")
+length(g_rows)
+
+g_slopes <- numeric(length(g_rows))
+
+for (i in seq_along(g_rows)) {
+  movies_temp <- movies_clean[-g_rows[i], ]
+  model_temp <- lm(revenue_million ~ rated + budget_million +
+      rated:budget_million,data = movies_temp)
+  g_slopes[i] <- coef(model_temp)["budget_million"]
+}
+
+range(g_slopes)
+
+r_slope <- coef(m3)["budget_million"] + coef(m3)["ratedR:budget_million"]
+
+slope_differences <- g_slopes - r_slope
+
+range(slope_differences)
+all(slope_differences > 0)
 ```
 
 ### Findings
@@ -200,6 +314,8 @@ Conduct an appropriate descriptive analysis (your choice of method, for example 
 - How stable your main finding is (PCS), for example to the G-rated movies or to the scale you chose
 - Interpretation in context of the research question
 
+We analyzed 1,538 movies rated G, PG, PG-13, or R after excluding 256 movies through the rating and missing-data filters. Then we fitted a linear regression model with a budget, rating, and their interactions. The result of the LR shows that budget was positively associated with revenue in every kind of rating. For G-rated movies, every $1 million higher budget corresponded to an predicted $5.07 million higher revenue , compared with $3.35 million for PG, $4.47 million for PG-13, and $3.05 million for R. However, from the t-tests for the interaction terms, the difference between the slope of G and the slope of R is statistically significant, while the PG and PG-13 slope differences from G were not. And the R^2 shows that the model explained 35.6% of revenue variation. To evaluate the stability of our finding, we used leave-one-out method by removing each G-rated movie in one turn and refitting 36 new models. The slope difference between G and R ranged from 1.52 to 2.60 and remained positive, compared with 2.03 in the full sample. Thus, the direction of this comparison was stable, although its magnitude varied.
+
 ------------------------------------------------------------------------
 
 ## Question 4: Same Data, Different Goals (15 points)
@@ -211,6 +327,13 @@ a.  **Inference.** You want to make claims about a larger population of movies. 
 b.  **Prediction.** You want to predict the outcome for a *new* movie. When would the prediction be made (for example, before release)? Which variables would actually be available at that time? How would you choose the model, measure how well it predicts, and what would you report?
 
 **Your answer (200-300 words, covering both a and b):**
+
+For Question 3,
+
+a. The population our inference task can be the movies rated G, PG, PG-13, or R and released in the years that were covered in our dataset (1971 - 2013). The dataset may not be a good or representative sample because we do not know how the movies are selected and thus introducing possible selection bias.
+We will still use the budget-rated interaction linear model but more clearly check the assumptions including the independence of the observations, linearity between the response and explanatory variables and homoscedasticity of the variance of residuals. We will finally report the slope and intercepts for each rated group and interpret them in context while reporting the confidence interval for coefficients. To be noted, here we only infer the association between variables instead of the causal effects.
+
+b. We can make the prediction of the total revenue of a movie slightly before the release of the movie as long as we can access its budget and MPAA rating. We will keep using this budget-rated interaction linear model but randomly divide our dataset into training set and test set with portion 7:3. Thus we can train the linear model on our training set and use the fitted model to predict on the test set. With metrics like MSE, MAE or MAPE, we can determine the prediction performance of the model. After we get the budget and MPAA rating of a new movie, we would report its predicted revenue together with a prediction interval.
 
 ------------------------------------------------------------------------
 
